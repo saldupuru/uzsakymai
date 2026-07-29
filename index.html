@@ -91,6 +91,8 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
 .btn-primary:hover{background:var(--berry-deep);box-shadow:0 6px 16px rgba(184,53,95,0.34);}
 .btn-ghost{background:transparent;color:var(--choc);border:1.5px solid var(--box-line);}
 .btn-ghost:hover{border-color:var(--berry);color:var(--berry);background:rgba(184,53,95,0.05);}
+.btn-danger{background:var(--muted-red);color:#fff;box-shadow:0 4px 12px rgba(166,75,75,0.28);}
+.btn-danger:hover{background:#8a3d3d;box-shadow:0 6px 16px rgba(166,75,75,0.34);}
 .btn-sm{padding:6px 10px;font-size:12px;border-radius:8px;}
 .btn-block{width:100%;margin-top:10px;}
 
@@ -210,6 +212,8 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
 .confirm-order-btn{background:var(--sage-deep);box-shadow:0 4px 12px rgba(94,110,66,0.28);}
 .confirm-order-btn:hover{background:var(--sage);}
 .export-modal{max-width:480px;}
+.confirm-modal{max-width:400px;}
+.confirm-message{font-size:14.5px;line-height:1.5;margin:0;white-space:pre-line;}
 .export-list{
   max-height:320px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;padding:6px 10px;
 }
@@ -586,6 +590,7 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
   let expenseCategories = []; // [{id, name}]
   let reportStart = '', reportEnd = '';
   let exportModalOpen = false;
+  let confirmDialog = null; // {message, danger, resolve} — custom in-app replacement for window.confirm()
   let exportSelectedStatuses = null; // Set of status keys; null until modal opened
   let reportResult = null;
   let invoicesExpanded = false;
@@ -1179,6 +1184,7 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
       </div>
       ${modalOrder ? modalHtml(modalOrder) : ''}
       ${exportModalOpen ? exportModalHtml() : ''}
+      ${confirmDialog ? confirmDialogHtml() : ''}
     `;
 
     attachEvents(prevId, prevCaret);
@@ -1413,6 +1419,25 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
       </div>
       <div style="max-width:420px;margin-top:10px;">${rows}</div>
       ` : ''}
+    </div>`;
+  }
+
+  function customConfirm(message, opts){
+    return new Promise(resolve=>{
+      confirmDialog = {message, danger: !!(opts && opts.danger), resolve};
+      render();
+    });
+  }
+  function confirmDialogHtml(){
+    const d = confirmDialog;
+    return `<div class="overlay" id="confirmOverlay">
+      <div class="modal confirm-modal">
+        <p class="confirm-message">${escapeHtml(d.message)}</p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="confirmCancelBtn">Atšaukti</button>
+          <button type="button" class="btn ${d.danger ? 'btn-danger' : 'btn-primary'}" id="confirmOkBtn">${d.danger ? 'Ištrinti' : 'Taip'}</button>
+        </div>
+      </div>
     </div>`;
   }
 
@@ -2991,6 +3016,23 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
       exportSelectedStatuses = exportSelectAll.checked ? new Set(STATUS_ORDER) : new Set();
       render();
     };
+    const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+    if(confirmCancelBtn) confirmCancelBtn.onclick = ()=>{
+      const d = confirmDialog; confirmDialog = null; render();
+      if(d) d.resolve(false);
+    };
+    const confirmOkBtn = document.getElementById('confirmOkBtn');
+    if(confirmOkBtn) confirmOkBtn.onclick = ()=>{
+      const d = confirmDialog; confirmDialog = null; render();
+      if(d) d.resolve(true);
+    };
+    const confirmOverlay = document.getElementById('confirmOverlay');
+    if(confirmOverlay) confirmOverlay.onclick = (e)=>{
+      if(e.target.id==='confirmOverlay'){
+        const d = confirmDialog; confirmDialog = null; render();
+        if(d) d.resolve(false);
+      }
+    };
     document.querySelectorAll('[data-export-cat-pick]').forEach(chk=>{
       chk.onchange = ()=>{
         const status = chk.dataset.exportCatPick;
@@ -3044,7 +3086,7 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
     });
     document.querySelectorAll('[data-invoice-remove]').forEach(btn=>{
       btn.onclick = async ()=>{
-        if(!confirm('Ištrinti šią sąskaitą? Šio veiksmo atšaukti negalėsi.')) return;
+        if(!(await customConfirm('Ištrinti šią sąskaitą? Šio veiksmo atšaukti negalėsi.', {danger:true}))) return;
         const removedInvId = btn.dataset.invoiceRemove;
         invoices = invoices.filter(i=>i.id!==removedInvId);
         await deleteInvoiceDoc(removedInvId);
@@ -3060,7 +3102,7 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
     });
     document.querySelectorAll('[data-attachment-remove]').forEach(btn=>{
       btn.onclick = async ()=>{
-        if(!confirm('Pašalinti prisegtą failą? Pati išlaida liks.')) return;
+        if(!(await customConfirm('Pašalinti prisegtą failą? Pati išlaida liks.', {danger:true}))) return;
         const ex = expenses.find(e=>e.id===btn.dataset.attachmentRemove);
         if(!ex) return;
         ex.attachmentDataUrl = '';
@@ -3133,7 +3175,7 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
     };
     document.querySelectorAll('[data-expense-remove]').forEach(btn=>{
       btn.onclick = async ()=>{
-        if(!confirm('Ištrinti šią išlaidą?')) return;
+        if(!(await customConfirm('Ištrinti šią išlaidą?', {danger:true}))) return;
         const removedExpId = btn.dataset.expenseRemove;
         expenses = expenses.filter(e=>e.id!==removedExpId);
         await deleteExpenseDoc(removedExpId);
@@ -3383,7 +3425,7 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
       const belowMin = adminMinChecks.filter(([qty,min])=>qty>0 && qty<min);
       if(belowMin.length){
         const msg = belowMin.map(([qty,min,label])=>`${label} kiekis (${qty}) yra mažesnis už nustatytą minimumą (${min}).`).join('\n');
-        if(!confirm(msg + '\n\nVis tiek išsaugoti šį užsakymą?')) return;
+        if(!(await customConfirm(msg + '\n\nVis tiek išsaugoti šį užsakymą?'))) return;
       }
 
       const data = {
@@ -3533,7 +3575,7 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
 
     const delBtn = document.getElementById('deleteOrder');
     if(delBtn) delBtn.onclick = async ()=>{
-      if(!confirm('Ištrinti šį užsakymą? Šio veiksmo atšaukti negalėsi.')) return;
+      if(!(await customConfirm('Ištrinti šį užsakymą? Šio veiksmo atšaukti negalėsi.', {danger:true}))) return;
       const existing = orders.find(o=>o.id===modalOrder.id);
       if(existing && existing.stockDeducted){
         warehouse.packaging.large = (warehouse.packaging.large||0) + (existing.largeCakes||[]).length;
