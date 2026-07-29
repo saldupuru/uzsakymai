@@ -1691,6 +1691,12 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
         <div class="field"><label>Didelis indelis</label><input type="text" id="setInfoLargeJar" placeholder="Pvz. 250 ml" value="${escapeAttr(orderSettings.infoLargeJar||'')}"></div>
         <div class="field"><label>Mažas indelis</label><input type="text" id="setInfoSmallJar" placeholder="Pvz. 150 ml" value="${escapeAttr(orderSettings.infoSmallJar||'')}"></div>
         <button class="btn btn-primary btn-sm" id="saveInfoTextsBtn">Išsaugoti</button>
+      </div>
+      <div style="margin-top:18px;max-width:380px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--choc-soft);margin-bottom:4px;text-transform:uppercase;letter-spacing:.03em;">Užsakymų numeracija</label>
+        <p class="combo-hint" style="margin:0 0 8px;">Kitas užsakymo numeris bus: <b>${(orderCounterCache||0)+1}</b></p>
+        <button class="btn btn-ghost btn-sm" id="resetOrderCounterBtn">Reset</button>
+        <p class="combo-hint" style="margin-top:6px;">Perskaičiuoja kitą numerį pagal didžiausią numerį tarp esamų (neištrintų) užsakymų. Naudinga po testavimo.</p>
       </div>` : ''}
     </div>`;
   }
@@ -2676,6 +2682,20 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
       const original = saveInfoTextsBtn.textContent;
       saveInfoTextsBtn.textContent = 'Išsaugota ✓';
       setTimeout(()=>{ saveInfoTextsBtn.textContent = original; }, 1500);
+    };
+    const resetOrderCounterBtn = document.getElementById('resetOrderCounterBtn');
+    if(resetOrderCounterBtn) resetOrderCounterBtn.onclick = async ()=>{
+      if(!(await customConfirm('Atstatyti kitą užsakymo numerį pagal esamus (neištrintus) užsakymus?'))) return;
+      let max = 0;
+      orders.forEach(o=>{ if(o.orderNumber && o.orderNumber > max) max = o.orderNumber; });
+      try{
+        await window.storage.set('orderCounter', max);
+        orderCounterCache = max;
+        render();
+      }catch(e){
+        console.error('Nepavyko atstatyti numeracijos', e);
+        alert('Nepavyko atstatyti numeracijos.');
+      }
     };
     const copyFormUrlBtn = document.getElementById('copyFormUrlBtn');
     if(copyFormUrlBtn) copyFormUrlBtn.onclick = async (e)=>{
