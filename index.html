@@ -248,6 +248,8 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
 .cost-components-panel .wh-stock-row{font-size:12.5px;}
 .stats-card-label{font-size:11.5px;color:var(--choc-soft);text-transform:uppercase;letter-spacing:.03em;font-weight:600;}
 .stats-card-value{font-size:20px;font-weight:700;color:var(--berry-deep);font-family:'Fraunces','Noto Serif',serif;}
+.stats-card-value.stats-income,.stats-card-value.stats-positive{color:var(--sage-deep);}
+.stats-card-value.stats-expense,.stats-card-value.stats-negative{color:var(--berry);}
 .stats-chart-wrap{
   background:var(--white);border:1px solid var(--line);border-radius:12px;padding:16px;
   max-width:600px;height:260px;position:relative;
@@ -1815,7 +1817,8 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
       </div>
       ${statsExpanded ? `
       <div class="stats-cards">
-        <div class="stats-card"><span class="stats-card-label">Iš viso pajamų</span><span class="stats-card-value" id="statsTotalIncome">—</span></div>
+        <div class="stats-card"><span class="stats-card-label">Iš viso pajamų</span><span class="stats-card-value stats-income" id="statsTotalIncome">—</span></div>
+        <div class="stats-card"><span class="stats-card-label">Iš viso išlaidų</span><span class="stats-card-value stats-expense" id="statsTotalExpenses">—</span></div>
         <div class="stats-card"><span class="stats-card-label">Vidutinis užsakymas</span><span class="stats-card-value" id="statsAvgOrder">—</span></div>
         <div class="stats-card"><span class="stats-card-label">Pelnas</span><span class="stats-card-value" id="statsProfit">—</span></div>
       </div>
@@ -2093,11 +2096,17 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
   function renderStatsCharts(){
     const stats = computeBusinessStats(statsYear);
     const incomeEl = document.getElementById('statsTotalIncome');
+    const expensesEl = document.getElementById('statsTotalExpenses');
     const avgEl = document.getElementById('statsAvgOrder');
     const profitEl = document.getElementById('statsProfit');
     if(incomeEl) incomeEl.textContent = `${stats.totalIncome.toFixed(2)} €`;
+    if(expensesEl) expensesEl.textContent = `${stats.totalExpenses.toFixed(2)} €`;
     if(avgEl) avgEl.textContent = `${stats.avgOrder.toFixed(2)} €`;
-    if(profitEl) profitEl.textContent = `${stats.netProfit.toFixed(2)} €`;
+    if(profitEl){
+      profitEl.textContent = `${stats.netProfit.toFixed(2)} €`;
+      profitEl.classList.toggle('stats-positive', stats.netProfit >= 0);
+      profitEl.classList.toggle('stats-negative', stats.netProfit < 0);
+    }
 
     const incomeCanvas = document.getElementById('incomeChart');
     if(incomeCanvas && window.Chart){
@@ -2109,12 +2118,12 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
           datasets: [{
             label: 'Pajamos (€)',
             data: stats.months.map(m=>Math.round(m.income*100)/100),
-            backgroundColor: '#B8355F',
+            backgroundColor: '#5E6E42',
             borderRadius: 6,
           }, {
             label: 'Išlaidos (€)',
             data: stats.months.map(m=>Math.round(m.expenses*100)/100),
-            backgroundColor: '#A64B4B',
+            backgroundColor: '#B8355F',
             borderRadius: 6,
           }],
         },
