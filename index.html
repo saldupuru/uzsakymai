@@ -324,6 +324,9 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
 .wh-head .section-title{margin:0;}
 .wh-chevron{transition:transform .15s var(--ease);color:var(--choc-soft);flex-shrink:0;}
 .wh-chevron.open{transform:rotate(180deg);}
+.sub-section{margin-top:28px;padding-top:24px;border-top:1px solid var(--line);}
+.sub-section:first-child{margin-top:0;padding-top:0;border-top:none;}
+.subsection-title{font-family:'Fraunces','Noto Serif',serif;font-size:16px;font-weight:600;margin:0;color:var(--choc);}
 .wh-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:18px;}
 @media (max-width:760px){ .wh-grid{grid-template-columns:1fr;} }
 .wh-col h4{font-family:'Fraunces','Noto Serif',serif;font-size:14.5px;font-weight:600;margin:0 0 8px;color:var(--choc);}
@@ -593,10 +596,8 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
   let confirmDialog = null; // {message, danger, resolve} — custom in-app replacement for window.confirm()
   let exportSelectedStatuses = null; // Set of status keys; null until modal opened
   let reportResult = null;
-  let invoicesExpanded = false;
   let orderSettings = {maxLarge:4, maxSmall:4, maxJarLarge:2, maxJarSmall:2, formUrl:'', minLargeCake:1, minSmallCake:1, minLargeJar:1, minSmallJar:1, notifyEmails:['juliusz89@gmail.com'], infoLargeCake:'', infoSmallCake:'', infoLargeJar:'', infoSmallJar:'', sellerName:'', sellerCode:'', sellerVat:'', sellerAddress:'', sellerBank:'', jarExtrasFeatureOn:true, cakeDecorFeatureOn:true, pickupEnabled:true, deliveryVilniusEnabled:true, deliveryBusEnabled:true};
   let vacations = []; // [{id, start:'YYYY-MM-DD', end:'YYYY-MM-DD'}]
-  let vacationsExpanded = false;
   let loaded = false;
   let activeFilter = 'aktyvus';
   let searchTerm = '';
@@ -612,9 +613,7 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
   let calYear = now.getFullYear();
   let calMonth = now.getMonth();
   let selectedDate = null;
-  let warehouseExpanded = false;
-  let pricesExpanded = false;
-  let settingsExpanded = false;
+  let systemSettingsExpanded = false;
 
   const MONTH_NAMES = ['sausis','vasaris','kovas','balandis','gegužė','birželis',
     'liepa','rugpjūtis','rugsėjis','spalis','lapkritis','gruodis'];
@@ -1176,11 +1175,22 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
         </div>
         ${filtered.length===0 ? emptyState() : `<div class="grid">${filtered.map(ticketCard).join('')}</div>`}
 
-        ${warehouseSectionHtml()}
-        ${pricesSectionHtml()}
-        ${vacationsSectionHtml()}
-        ${invoicesSectionHtml()}
-        ${settingsSectionHtml()}
+        <div class="wh-section">
+          <div class="wh-head">
+            <div class="wh-head-left" id="systemSettingsToggle">
+              <h2 class="section-title">Sistemos nustatymai</h2>
+              <svg class="wh-chevron ${systemSettingsExpanded?'open':''}" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+          </div>
+          ${systemSettingsExpanded ? `
+          <div style="margin-top:10px;">
+            ${warehouseSectionHtml()}
+            ${pricesSectionHtml()}
+            ${vacationsSectionHtml()}
+            ${invoicesSectionHtml()}
+            ${settingsSectionHtml()}
+          </div>` : ''}
+        </div>
       </div>
       ${modalOrder ? modalHtml(modalOrder) : ''}
       ${exportModalOpen ? exportModalHtml() : ''}
@@ -1263,15 +1273,11 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
       ? warehouse.colors.map((c,i)=>`<span class="chip"><span class="chip-dot" style="background:${colorNameToHex(c)}"></span>${escapeHtml(c)}<button class="chip-x" data-wtype="color" data-widx="${i}">×</button></span>`).join('')
       : `<p class="wh-empty">Nėra įvestų spalvų</p>`;
 
-    return `<div class="wh-section">
-      <div class="wh-head">
-        <div class="wh-head-left" id="whToggle">
-          <h2 class="section-title">Sandėlys</h2>
-          <svg class="wh-chevron ${warehouseExpanded?'open':''}" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
+    return `<div class="sub-section">
+      <div class="wh-head" style="margin-bottom:6px;">
+        <h3 class="subsection-title">Sandėlys</h3>
         <button type="button" class="btn btn-ghost btn-sm" id="copyWhBtn">Kopijuoti skonius ir spalvas</button>
       </div>
-      ${warehouseExpanded ? `
       <div class="wh-grid">
         <div class="wh-col">
           <h4>Turimi skoniai</h4>
@@ -1296,7 +1302,7 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
           <div class="wh-stock-row"><span>Dideli indeliai</span><input type="number" min="0" id="whJarsLarge" value="${warehouse.packaging.jarsLarge||0}"></div>
           <div class="wh-stock-row"><span>Maži indeliai</span><input type="number" min="0" id="whJarsSmall" value="${warehouse.packaging.jarsSmall||0}"></div>
         </div>
-      </div>` : ''}
+      </div>
     </div>`;
   }
 
@@ -1320,14 +1326,10 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
         </div>`).join('')
       : `<p class="wh-empty">Nėra pridėtų priedų</p>`;
 
-    return `<div class="wh-section">
-      <div class="wh-head">
-        <div class="wh-head-left" id="pricesToggle">
-          <h2 class="section-title">Kainos</h2>
-          <svg class="wh-chevron ${pricesExpanded?'open':''}" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
+    return `<div class="sub-section">
+      <div class="wh-head" style="margin-bottom:6px;">
+        <h3 class="subsection-title">Kainos</h3>
       </div>
-      ${pricesExpanded ? `
       <div style="max-width:380px;margin-top:16px;">
         ${PRICE_ROWS.map(([key,label])=>`
           <div class="wh-stock-row"><span>${label}</span>
@@ -1391,7 +1393,7 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
             </div>
           </div>`;
         }).join('')}
-      </div>` : ''}
+      </div>
     </div>`;
   }
 
@@ -1403,14 +1405,10 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
         </div>`).join('')
       : `<p class="wh-empty">Atostogų nenustatyta</p>`;
 
-    return `<div class="wh-section">
-      <div class="wh-head">
-        <div class="wh-head-left" id="vacationsToggle">
-          <h2 class="section-title">Atostogos</h2>
-          <svg class="wh-chevron ${vacationsExpanded?'open':''}" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
+    return `<div class="sub-section">
+      <div class="wh-head" style="margin-bottom:6px;">
+        <h3 class="subsection-title">Atostogos</h3>
       </div>
-      ${vacationsExpanded ? `
       <p class="combo-hint" style="margin-bottom:10px;">Šiomis dienomis klientai negalės pateikti užsakymo per kliento formą.</p>
       <div class="wh-add-row" style="max-width:420px;">
         <div class="field" style="margin-bottom:0;flex:1;"><label>Nuo</label><input type="date" id="vacationStart"></div>
@@ -1418,7 +1416,6 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
         <button class="btn btn-primary btn-sm" id="addVacationBtn" style="align-self:flex-end;">+ Pridėti</button>
       </div>
       <div style="max-width:420px;margin-top:10px;">${rows}</div>
-      ` : ''}
     </div>`;
   }
 
@@ -1580,14 +1577,10 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
         <button type="button" class="btn btn-ghost btn-sm" id="downloadReportBtn" style="align-self:flex-start;">Atsisiųsti PDF ataskaitą</button>
       </div>` : '';
 
-    return `<div class="wh-section">
-      <div class="wh-head">
-        <div class="wh-head-left" id="invoicesToggle">
-          <h2 class="section-title">Apskaita</h2>
-          <svg class="wh-chevron ${invoicesExpanded?'open':''}" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
+    return `<div class="sub-section">
+      <div class="wh-head" style="margin-bottom:6px;">
+        <h3 class="subsection-title">Apskaita</h3>
       </div>
-      ${invoicesExpanded ? `
       <div style="max-width:520px;">
         <h4 style="font-family:'Fraunces','Noto Serif',serif;font-size:14.5px;font-weight:600;margin:0 0 10px;color:var(--choc);">Pajamų-išlaidų žurnalas</h4>
         <p class="combo-hint" style="margin-bottom:10px;">Pajamos susidaro automatiškai iš išrašytų sąskaitų. Naują sąskaitą gali išrašyti atidaręs konkretų užsakymą.</p>
@@ -1640,19 +1633,15 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
         <div class="field"><label>Adresas</label><input type="text" id="setSellerAddress" value="${escapeAttr(orderSettings.sellerAddress||'')}"></div>
         <div class="field"><label>Banko sąskaita (IBAN, nebūtina)</label><input type="text" id="setSellerBank" value="${escapeAttr(orderSettings.sellerBank||'')}"></div>
         <button class="btn btn-primary btn-sm" id="saveSellerInfoBtn">Išsaugoti</button>
-      </div>` : ''}
+      </div>
     </div>`;
   }
 
   function settingsSectionHtml(){
-    return `<div class="wh-section">
-      <div class="wh-head">
-        <div class="wh-head-left" id="settingsToggle">
-          <h2 class="section-title">Užsakymo parametrai</h2>
-          <svg class="wh-chevron ${settingsExpanded?'open':''}" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
+    return `<div class="sub-section">
+      <div class="wh-head" style="margin-bottom:6px;">
+        <h3 class="subsection-title">Užsakymo parametrai</h3>
       </div>
-      ${settingsExpanded ? `
       <div style="max-width:380px;margin-top:16px;">
         <div class="wh-stock-row"><span>Didelio torto maks. derinių sk.</span><input type="number" min="1" max="10" id="setMaxLarge" value="${orderSettings.maxLarge}"></div>
         <div class="wh-stock-row"><span>Mažo torto maks. derinių sk.</span><input type="number" min="1" max="10" id="setMaxSmall" value="${orderSettings.maxSmall}"></div>
@@ -1697,7 +1686,7 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
         <p class="combo-hint" style="margin:0 0 8px;">Kitas užsakymo numeris bus: <b>${(orderCounterCache||0)+1}</b></p>
         <button class="btn btn-ghost btn-sm" id="resetOrderCounterBtn">Reset</button>
         <p class="combo-hint" style="margin-top:6px;">Perskaičiuoja kitą numerį pagal didžiausią numerį tarp esamų (neištrintų) užsakymų. Naudinga po testavimo.</p>
-      </div>` : ''}
+      </div>
     </div>`;
   }
 
@@ -2987,15 +2976,8 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
       };
     });
 
-    const whToggle = document.getElementById('whToggle');
-    if(whToggle) whToggle.onclick = ()=>{ warehouseExpanded = !warehouseExpanded; render(); };
-    const pricesToggle = document.getElementById('pricesToggle');
-    if(pricesToggle) pricesToggle.onclick = ()=>{ pricesExpanded = !pricesExpanded; render(); };
-    const settingsToggle = document.getElementById('settingsToggle');
-    if(settingsToggle) settingsToggle.onclick = ()=>{ settingsExpanded = !settingsExpanded; render(); };
-
-    const vacationsToggle = document.getElementById('vacationsToggle');
-    if(vacationsToggle) vacationsToggle.onclick = ()=>{ vacationsExpanded = !vacationsExpanded; render(); };
+    const systemSettingsToggle = document.getElementById('systemSettingsToggle');
+    if(systemSettingsToggle) systemSettingsToggle.onclick = ()=>{ systemSettingsExpanded = !systemSettingsExpanded; render(); };
     const addVacationBtn = document.getElementById('addVacationBtn');
     if(addVacationBtn) addVacationBtn.onclick = async ()=>{
       const startEl = document.getElementById('vacationStart');
@@ -3078,8 +3060,6 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
         confirmExportBtn.textContent = 'Eksportuoti į Excel';
       }
     };
-    const invoicesToggle = document.getElementById('invoicesToggle');
-    if(invoicesToggle) invoicesToggle.onclick = ()=>{ invoicesExpanded = !invoicesExpanded; render(); };
     const saveSellerInfoBtn = document.getElementById('saveSellerInfoBtn');
     if(saveSellerInfoBtn) saveSellerInfoBtn.onclick = async ()=>{
       orderSettings.sellerName = (document.getElementById('setSellerName').value||'').trim();
