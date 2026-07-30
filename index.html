@@ -642,6 +642,9 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
   let invoicesExpanded = false;
   let statsExpanded = false;
   let statsYear = new Date().getFullYear();
+  let cardsMode = 'year'; // 'year' | 'month'
+  let cardsYear = new Date().getFullYear();
+  let cardsMonth = new Date().getMonth(); // 0-11, used when cardsMode==='month'
   let productsMode = 'year'; // 'year' | 'month'
   let productsYear = new Date().getFullYear();
   let productsMonth = new Date().getMonth(); // 0-11, used when productsMode==='month'
@@ -1819,6 +1822,17 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
         </div>
       </div>
       ${statsExpanded ? `
+      <div style="display:flex;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:14px;">
+        <div class="year-switcher">
+          <button type="button" class="btn btn-sm ${cardsMode==='month'?'btn-primary':'btn-ghost'}" id="cardsModeMonth">Mėnuo</button>
+          <button type="button" class="btn btn-sm ${cardsMode==='year'?'btn-primary':'btn-ghost'}" id="cardsModeYear">Metai</button>
+        </div>
+        <div class="year-switcher">
+          <button type="button" class="btn btn-ghost btn-sm" id="cardsPeriodPrev">←</button>
+          <span class="year-switcher-label">${cardsMode==='year' ? cardsYear : `${MONTH_SHORT[cardsMonth]} ${cardsYear}`}</span>
+          <button type="button" class="btn btn-ghost btn-sm" id="cardsPeriodNext">→</button>
+        </div>
+      </div>
       <div class="stats-cards">
         <div class="stats-card"><span class="stats-card-label">Iš viso pajamų</span><span class="stats-card-value stats-income" id="statsTotalIncome">—</span></div>
         <div class="stats-card"><span class="stats-card-label">Iš viso išlaidų</span><span class="stats-card-value stats-expense" id="statsTotalExpenses">—</span></div>
@@ -2109,17 +2123,32 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
 
   function renderStatsCharts(){
     const stats = computeBusinessStats(statsYear);
+
+    const cardsStats = cardsYear===statsYear ? stats : computeBusinessStats(cardsYear);
+    let cardIncome, cardExpenses, cardAvg, cardProfit;
+    if(cardsMode === 'year'){
+      cardIncome = cardsStats.totalIncome;
+      cardExpenses = cardsStats.totalExpenses;
+      cardAvg = cardsStats.avgOrder;
+      cardProfit = cardsStats.netProfit;
+    } else {
+      const m = cardsStats.months[cardsMonth];
+      cardIncome = Math.round(m.income*100)/100;
+      cardExpenses = Math.round(m.expenses*100)/100;
+      cardAvg = m.orderCount ? Math.round((m.income/m.orderCount)*100)/100 : 0;
+      cardProfit = Math.round((m.income - m.cogs - m.expenses)*100)/100;
+    }
     const incomeEl = document.getElementById('statsTotalIncome');
     const expensesEl = document.getElementById('statsTotalExpenses');
     const avgEl = document.getElementById('statsAvgOrder');
     const profitEl = document.getElementById('statsProfit');
-    if(incomeEl) incomeEl.textContent = `${stats.totalIncome.toFixed(2)} €`;
-    if(expensesEl) expensesEl.textContent = `${stats.totalExpenses.toFixed(2)} €`;
-    if(avgEl) avgEl.textContent = `${stats.avgOrder.toFixed(2)} €`;
+    if(incomeEl) incomeEl.textContent = `${cardIncome.toFixed(2)} €`;
+    if(expensesEl) expensesEl.textContent = `${cardExpenses.toFixed(2)} €`;
+    if(avgEl) avgEl.textContent = `${cardAvg.toFixed(2)} €`;
     if(profitEl){
-      profitEl.textContent = `${stats.netProfit.toFixed(2)} €`;
-      profitEl.classList.toggle('stats-positive', stats.netProfit >= 0);
-      profitEl.classList.toggle('stats-negative', stats.netProfit < 0);
+      profitEl.textContent = `${cardProfit.toFixed(2)} €`;
+      profitEl.classList.toggle('stats-positive', cardProfit >= 0);
+      profitEl.classList.toggle('stats-negative', cardProfit < 0);
     }
 
     const incomeCanvas = document.getElementById('incomeChart');
@@ -3502,6 +3531,22 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
     if(statsYearPrev) statsYearPrev.onclick = ()=>{ statsYear -= 1; render(); };
     const statsYearNext = document.getElementById('statsYearNext');
     if(statsYearNext) statsYearNext.onclick = ()=>{ statsYear += 1; render(); };
+    const cardsModeMonth = document.getElementById('cardsModeMonth');
+    if(cardsModeMonth) cardsModeMonth.onclick = ()=>{ cardsMode = 'month'; render(); };
+    const cardsModeYear = document.getElementById('cardsModeYear');
+    if(cardsModeYear) cardsModeYear.onclick = ()=>{ cardsMode = 'year'; render(); };
+    const cardsPeriodPrev = document.getElementById('cardsPeriodPrev');
+    if(cardsPeriodPrev) cardsPeriodPrev.onclick = ()=>{
+      if(cardsMode==='year'){ cardsYear -= 1; }
+      else { cardsMonth -= 1; if(cardsMonth<0){ cardsMonth=11; cardsYear -= 1; } }
+      render();
+    };
+    const cardsPeriodNext = document.getElementById('cardsPeriodNext');
+    if(cardsPeriodNext) cardsPeriodNext.onclick = ()=>{
+      if(cardsMode==='year'){ cardsYear += 1; }
+      else { cardsMonth += 1; if(cardsMonth>11){ cardsMonth=0; cardsYear += 1; } }
+      render();
+    };
     const productsModeMonth = document.getElementById('productsModeMonth');
     if(productsModeMonth) productsModeMonth.onclick = ()=>{ productsMode = 'month'; render(); };
     const productsModeYear = document.getElementById('productsModeYear');
