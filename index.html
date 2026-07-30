@@ -642,6 +642,9 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
   let invoicesExpanded = false;
   let statsExpanded = false;
   let statsYear = new Date().getFullYear();
+  let productsMode = 'year'; // 'year' | 'month'
+  let productsYear = new Date().getFullYear();
+  let productsMonth = new Date().getMonth(); // 0-11, used when productsMode==='month'
   let journalYear = new Date().getFullYear();
   let incomeChartInstance = null;
   let productsChartInstance = null;
@@ -1834,7 +1837,18 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
         <div class="stats-chart-wrap"><canvas id="incomeChart"></canvas></div>
       </div>
       <div class="inner-block" style="margin-top:24px;">
-        <h4 style="font-family:'Fraunces','Noto Serif',serif;font-size:13.5px;font-weight:600;margin:0 0 10px;color:var(--choc);">Populiariausi produktai</h4>
+        <div style="display:flex;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:14px;">
+          <h4 style="font-family:'Fraunces','Noto Serif',serif;font-size:13.5px;font-weight:600;margin:0;color:var(--choc);">Populiariausi produktai</h4>
+          <div class="year-switcher">
+            <button type="button" class="btn btn-sm ${productsMode==='month'?'btn-primary':'btn-ghost'}" id="productsModeMonth">Mėnuo</button>
+            <button type="button" class="btn btn-sm ${productsMode==='year'?'btn-primary':'btn-ghost'}" id="productsModeYear">Metai</button>
+          </div>
+          <div class="year-switcher">
+            <button type="button" class="btn btn-ghost btn-sm" id="productsPeriodPrev">←</button>
+            <span class="year-switcher-label">${productsMode==='year' ? productsYear : `${MONTH_SHORT[productsMonth]} ${productsYear}`}</span>
+            <button type="button" class="btn btn-ghost btn-sm" id="productsPeriodNext">→</button>
+          </div>
+        </div>
         <div class="stats-chart-wrap"><canvas id="productsChart"></canvas></div>
       </div>
       ` : ''}
@@ -2138,15 +2152,17 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
     const productsCanvas = document.getElementById('productsChart');
     if(productsCanvas && window.Chart){
       if(productsChartInstance){ productsChartInstance.destroy(); productsChartInstance = null; }
+      const productsPrefix = productsMode==='year' ? `${productsYear}-` : `${productsYear}-${String(productsMonth+1).padStart(2,'0')}`;
+      const popularProducts = computeProductStats(productsPrefix);
       const productColors = ['#B8355F', '#C9932E', '#5E6E42', '#6B7FBF', '#B0685E', '#8E5DA6'];
       productsChartInstance = new Chart(productsCanvas, {
         type: 'bar',
         data: {
-          labels: stats.popularProducts.map(p=>p[0]),
+          labels: popularProducts.map(p=>p[0]),
           datasets: [{
             label: 'Kiekis (vnt.)',
-            data: stats.popularProducts.map(p=>p[1]),
-            backgroundColor: stats.popularProducts.map((p,i)=>productColors[i % productColors.length]),
+            data: popularProducts.map(p=>p[1]),
+            backgroundColor: popularProducts.map((p,i)=>productColors[i % productColors.length]),
             borderRadius: 6,
           }],
         },
@@ -2181,6 +2197,18 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
     return `<div class="reminders-banner">
       ${items.map(it=>`<div class="reminder-item ${it.cls}"><span class="reminder-icon">${it.icon}</span><span>${it.text}</span></div>`).join('')}
     </div>`;
+  }
+
+  function computeProductStats(datePrefix){
+    const productCounts = { 'Didelis tortas':0, 'Mažas tortas':0, 'Didelis indelis':0, 'Mažas indelis':0 };
+    orders.forEach(o=>{
+      if(!o.neededDate || !o.neededDate.startsWith(datePrefix)) return;
+      productCounts['Didelis tortas'] += (o.largeCakes||[]).length;
+      productCounts['Mažas tortas'] += (o.smallCakes||[]).length;
+      productCounts['Didelis indelis'] += (o.jarQtyLarge||0);
+      productCounts['Mažas indelis'] += (o.jarQtySmall||0);
+    });
+    return Object.entries(productCounts).sort((a,b)=>b[1]-a[1]);
   }
 
   function computeBusinessStats(year){
@@ -3474,6 +3502,22 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
     if(statsYearPrev) statsYearPrev.onclick = ()=>{ statsYear -= 1; render(); };
     const statsYearNext = document.getElementById('statsYearNext');
     if(statsYearNext) statsYearNext.onclick = ()=>{ statsYear += 1; render(); };
+    const productsModeMonth = document.getElementById('productsModeMonth');
+    if(productsModeMonth) productsModeMonth.onclick = ()=>{ productsMode = 'month'; render(); };
+    const productsModeYear = document.getElementById('productsModeYear');
+    if(productsModeYear) productsModeYear.onclick = ()=>{ productsMode = 'year'; render(); };
+    const productsPeriodPrev = document.getElementById('productsPeriodPrev');
+    if(productsPeriodPrev) productsPeriodPrev.onclick = ()=>{
+      if(productsMode==='year'){ productsYear -= 1; }
+      else { productsMonth -= 1; if(productsMonth<0){ productsMonth=11; productsYear -= 1; } }
+      render();
+    };
+    const productsPeriodNext = document.getElementById('productsPeriodNext');
+    if(productsPeriodNext) productsPeriodNext.onclick = ()=>{
+      if(productsMode==='year'){ productsYear += 1; }
+      else { productsMonth += 1; if(productsMonth>11){ productsMonth=0; productsYear += 1; } }
+      render();
+    };
     if(statsExpanded) renderStatsCharts();
     const addVacationBtn = document.getElementById('addVacationBtn');
     if(addVacationBtn) addVacationBtn.onclick = async ()=>{
