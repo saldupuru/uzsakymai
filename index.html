@@ -236,16 +236,6 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
 .reminder-item.rem-warn{background:#FBEFD6;color:#8C6415;}
 .reminder-item.rem-info{background:#E1EAD2;color:var(--sage-deep, #5E6E42);}
 .reminder-item.rem-danger{background:#F3D3DE;color:var(--berry-deep, #8E2748);}
-.reminders-banner{
-  display:flex;flex-direction:column;gap:8px;margin-bottom:22px;
-}
-.reminder-item{
-  display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:12px;font-size:13.5px;font-weight:500;
-}
-.reminder-icon{font-size:16px;flex-shrink:0;}
-.reminder-item.rem-warn{background:#FBEFD6;color:#8C6415;}
-.reminder-item.rem-info{background:#E1EAD2;color:var(--sage-deep, #5E6E42);}
-.reminder-item.rem-danger{background:#F3D3DE;color:var(--berry-deep, #8E2748);}
 .stats-cards{display:flex;flex-wrap:wrap;gap:12px;margin-top:16px;}
 .stats-card{
   background:var(--cream, #FFF8EF);border:1px solid var(--line);border-radius:12px;
@@ -1831,7 +1821,7 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
       </div>
       <div class="inner-block" style="margin-top:20px;">
         <div style="display:flex;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:14px;">
-          <h4 style="font-family:'Fraunces','Noto Serif',serif;font-size:13.5px;font-weight:600;margin:0;color:var(--choc);">Mėnesio pajamos</h4>
+          <h4 style="font-family:'Fraunces','Noto Serif',serif;font-size:13.5px;font-weight:600;margin:0;color:var(--choc);">Mėnesio pajamos ir išlaidos</h4>
           <div class="year-switcher">
             <button type="button" class="btn btn-ghost btn-sm" id="statsYearPrev">←</button>
             <span class="year-switcher-label">${statsYear}</span>
@@ -2121,11 +2111,16 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
             data: stats.months.map(m=>Math.round(m.income*100)/100),
             backgroundColor: '#B8355F',
             borderRadius: 6,
+          }, {
+            label: 'Išlaidos (€)',
+            data: stats.months.map(m=>Math.round(m.expenses*100)/100),
+            backgroundColor: '#A64B4B',
+            borderRadius: 6,
           }],
         },
         options: {
           responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+          plugins: { legend: { display: true, position: 'bottom' } },
           scales: { y: { beginAtZero: true } },
         },
       });
