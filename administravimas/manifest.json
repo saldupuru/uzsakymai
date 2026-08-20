@@ -2,7 +2,7 @@
   "name": "Saldu Puru - Cukraus vatos skanėstai",
   "short_name": "Saldu Puru",
   "description": "Tortų ir indelių užsakymų administravimo sistema",
-  "start_url": "./",
+  "start_url": "/administravimas/",
   "scope": "./",
   "display": "standalone",
   "background_color": "#FFF8EF",
