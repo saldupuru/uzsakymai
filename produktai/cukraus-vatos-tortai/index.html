@@ -1132,7 +1132,7 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
 .landing-cta-section p{font-family:'Inter','Noto Sans',sans-serif;font-size:14.5px;color:var(--l-text-soft);max-width:440px;margin:0 auto 24px;}
 
 /* "Mūsų produktai" section (links to /produktai/cukraus-vatos-tortai and /produktai/cukraus-vatos-indeliai) */
-.landing-products-section{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:8px 24px 24px;text-align:center;}
+.landing-products-section{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:8px 24px 56px;text-align:center;}
 .landing-products-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:8px;text-align:left;}
 @media (max-width:640px){.landing-products-grid{grid-template-columns:1fr;}}
 .landing-product-card{display:block;background:var(--l-white);border-radius:20px;overflow:hidden;text-decoration:none;color:inherit;box-shadow:0 4px 16px rgba(75,58,64,0.08);transition:transform .2s ease,box-shadow .2s ease;}
@@ -1452,6 +1452,12 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
     {id:'faq7', q: 'Ar yra paruoštų pasiūlymų/paketų už fiksuotą kainą?', a: 'Kartais turime specialius pasiūlymus – jei tokių yra, juos matysite užsakymo formoje virš įprastų produktų. Arba mūsų Facebook puslapyje.'},
   ];
   let landingFaqList = []; // [{id, q, a}] - loaded from storage in loadBlobSettings; falls back to DEFAULT_LANDING_FAQ
+  // Product photos/descriptions for the /produktai/... pages, kept in their
+  // OWN storage document (not inside orderSettings) - orderSettings already
+  // carries landingGalleryPhotos and everything else on the Puslapis tab, and
+  // Firestore caps a single document at 1MB, so piling several more base64
+  // product photos on top of that risked (and did) silently fail to save.
+  let productPages = {cakes:{photos:[], description:''}, jars:{photos:[], description:''}};
 
   // Editable email templates. {{tokens}} get substituted with real order
   // data when sending, or with SAMPLE_EMAIL_TOKENS for the admin live preview.
@@ -1820,7 +1826,6 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
     landingWhy3Title:'Eglė P.', landingWhy3Text:'Cukraus vata buvo šventės akcentas - visi svečiai klausinėjo, kur užsakėme.', landingWhy3Rating:5,
     landingWhy4Title:'Tomas ir Gabija', landingWhy4Text:'Nuostabus skonis ir gražus pateikimas. Ačiū už puikią šventę!', landingWhy4Rating:5,
     landingProductsTitle:'Mūsų produktai', landingProductsSubtitle:'',
-    productsCakes:{photos:[], description:'', priceMin:'', priceMax:''}, productsJars:{photos:[], description:'', priceMin:'', priceMax:''},
     landingOccasionsTitle:'Puikiai tinka kiekvienai progai',
     landingGalleryTitle:'Jūsų švenčių akimirkos', landingGallerySubtitle:'Spalvingi skanėstai, kurie tampa gražia šventės dalimi.',
     landingCtaTitle:'Norite saldesnės savo šventės?', landingCtaSubtitle:'Parašykite mums ir kartu išsirinksime jūsų progai tinkamiausius skanėstus.',
@@ -2071,14 +2076,15 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
         delete orderSettings.maxJar;
       }
     }catch(e){}
-    // Self-heal the shape of productsCakes/productsJars (used by the new
-    // /produktai/... pages) in case they're missing or only partially set -
-    // Object.assign above is shallow, so a saved settings blob that has one
-    // of these fields but not the other wouldn't get the missing one's
-    // defaults otherwise.
-    const defaultProductInfo = ()=>({photos:[], description:'', priceMin:'', priceMax:''});
-    orderSettings.productsCakes = Object.assign(defaultProductInfo(), orderSettings.productsCakes);
-    orderSettings.productsJars = Object.assign(defaultProductInfo(), orderSettings.productsJars);
+    try{
+      const ppres = await window.storage.get('productPages', true);
+      const parsedPP = (ppres && ppres.value) ? JSON.parse(ppres.value) : {};
+      const defaultProductInfo = ()=>({photos:[], description:''});
+      productPages = {
+        cakes: Object.assign(defaultProductInfo(), parsedPP.cakes),
+        jars: Object.assign(defaultProductInfo(), parsedPP.jars),
+      };
+    }catch(e){ productPages = {cakes:{photos:[], description:''}, jars:{photos:[], description:''}}; }
     try{
       const vres = await window.storage.get('vacations', true);
       vacations = (vres && vres.value) ? JSON.parse(vres.value) : [];
@@ -2477,6 +2483,7 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
   async function saveDiscountCodes(){ try{ await storageSetWithRetry('discountCodes', JSON.stringify(discountCodes)); }catch(e){ console.error('Nepavyko išsaugoti nuolaidos kodų', e); } }
   async function saveOffers(){ try{ await storageSetWithRetry('offers', JSON.stringify(offersList)); }catch(e){ console.error('Nepavyko išsaugoti pasiūlymų', e); } }
   async function saveLandingFaq(){ try{ await storageSetWithRetry('landingFaq', JSON.stringify(landingFaqList)); }catch(e){ console.error('Nepavyko išsaugoti DUK', e); } }
+  async function saveProductPages(){ try{ await storageSetWithRetry('productPages', JSON.stringify(productPages)); }catch(e){ console.error('Nepavyko išsaugoti produktų nuotraukų/aprašymo', e); alert('Nepavyko išsaugoti produkto nuotraukos ar aprašymo - patikrink interneto ryšį ir bandyk dar kartą.'); } }
   async function saveEmailTemplates(){ try{ await storageSetWithRetry('emailTemplates', JSON.stringify(emailTemplates)); }catch(e){ console.error('Nepavyko išsaugoti el. laiškų šablonų', e); } }
 
   // Preliminarus individualios veiklos GPM ir "Sodros" (VSD+PSD) skaičiavimas,
@@ -2941,7 +2948,6 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
     {key:'discounts', icon:'🏷️', label:'Akcijos'},
     {key:'vault', icon:'🔐', label:'Saugykla'},
     {key:'page', icon:'🖥️', label:'Puslapis'},
-    {key:'products', icon:'🎂', label:'Produktai'},
     {key:'emailTemplates', icon:'📨', label:'El. laiškų šablonai'},
     {key:'settings', icon:'⚙️', label:'Parametrai'},
   ];
@@ -3066,7 +3072,6 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
       discounts: discountsSectionHtml,
       vault: vaultSectionHtml,
       page: pageSectionHtml,
-      products: productsSectionHtml,
       emailTemplates: emailTemplatesSectionHtml,
       settings: settingsSectionHtml,
     };
@@ -4016,12 +4021,15 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
 
     const productsTitle = orderSettings.landingProductsTitle || 'Mūsų produktai';
     const productsSubtitle = orderSettings.landingProductsSubtitle || '';
-    const productsCakesData = orderSettings.productsCakes || {};
-    const productsJarsData = orderSettings.productsJars || {};
+    const productsCakesData = productPages.cakes || {};
+    const productsJarsData = productPages.jars || {};
     const productsCakesPhoto = (productsCakesData.photos && productsCakesData.photos[0]) || '';
     const productsJarsPhoto = (productsJarsData.photos && productsJarsData.photos[0]) || '';
-    const productsCakesPriceRange = formatPriceRangeText(productsCakesData.priceMin, productsCakesData.priceMax);
-    const productsJarsPriceRange = formatPriceRangeText(productsJarsData.priceMin, productsJarsData.priceMax);
+    // Price range is never entered by hand - it's the small/large size prices
+    // from the Kainos tab (small = "nuo", large = "iki"), so there's only
+    // ever one place to keep a price up to date.
+    const productsCakesPriceRange = formatPriceRangeText(Math.min(prices.small_cake||0, prices.large_cake||0), Math.max(prices.small_cake||0, prices.large_cake||0));
+    const productsJarsPriceRange = formatPriceRangeText(Math.min(prices.small_jar||0, prices.large_jar||0), Math.max(prices.small_jar||0, prices.large_jar||0));
 
     const REAL_REVIEWS = reviews.slice()
       .sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''))
@@ -4261,16 +4269,18 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
   function productPageHtml(){
     const type = productRouteType || 'cakes';
     const isJars = type === 'jars';
-    const data = (isJars ? orderSettings.productsJars : orderSettings.productsCakes) || {photos:[], description:'', priceMin:'', priceMax:''};
+    const data = (isJars ? productPages.jars : productPages.cakes) || {photos:[], description:''};
     const photos = data.photos || [];
     const idx = photos.length ? Math.min(Math.max(productPhotoIndex, 0), photos.length - 1) : 0;
     const mainPhoto = photos.length ? photos[idx] : '/logo.png';
     const title = isJars ? 'Cukraus vatos indeliai' : 'Cukraus vatos tortai';
-    const priceRange = formatPriceRangeText(data.priceMin, data.priceMax);
+    const priceRange = isJars
+      ? formatPriceRangeText(Math.min(prices.small_jar||0, prices.large_jar||0), Math.max(prices.small_jar||0, prices.large_jar||0))
+      : formatPriceRangeText(Math.min(prices.small_cake||0, prices.large_cake||0), Math.max(prices.small_cake||0, prices.large_cake||0));
     const descText = (data.description || '').trim();
     return `<div class="landing">
       <div class="wrap product-page-wrap">
-        <a href="/" class="customer-back-link">← Grįžti į pagrindinį puslapį</a>
+        <button type="button" class="customer-back-link" id="productBackToLandingBtn">← Grįžti į pagrindinį puslapį</button>
         <div class="product-page">
           <div class="product-page-gallery">
             <div class="product-page-main-photo"><img src="${escapeAttr(mainPhoto)}" alt="${escapeAttr(title)} - Saldu Puru"></div>
@@ -4557,6 +4567,19 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
         render();
       };
     });
+    const productBackToLandingBtn = document.getElementById('productBackToLandingBtn');
+    if(productBackToLandingBtn) productBackToLandingBtn.onclick = ()=>{
+      // Client-side transition, not a real navigation - the /produktai/...
+      // pages are separate real files (needed so Google can index/crawl
+      // them directly), but they run the exact same JS as the root page,
+      // so switching screenMode + updating the URL via pushState is enough
+      // to show the landing page instantly, without a full reload.
+      productRouteType = null;
+      screenMode = 'landing';
+      history.pushState(null, '', '/');
+      render();
+      window.scrollTo(0, 0);
+    };
     const landingLightboxOverlay = document.getElementById('landingLightboxOverlay');
     if(landingLightboxOverlay) landingLightboxOverlay.onclick = (e)=>{
       if(e.target.id==='landingLightboxOverlay'){ landingLightboxIndex = null; render(); }
@@ -6534,6 +6557,8 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
       setIfExists('setLandingFooterText', 'landingFooterText');
       setIfExists('setLandingFacebookUrl', 'landingFacebookUrl');
       setIfExists('setLandingInstagramUrl', 'landingInstagramUrl');
+      setIfExists('setLandingProductsTitle', 'landingProductsTitle');
+      setIfExists('setLandingProductsSubtitle', 'landingProductsSubtitle');
       document.querySelectorAll('[data-faq-q]').forEach(input=>{
         const i = +input.dataset.faqQ;
         if(landingFaqList[i]) landingFaqList[i].q = input.value.trim();
@@ -6542,8 +6567,15 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
         const i = +textarea.dataset.faqA;
         if(landingFaqList[i]) landingFaqList[i].a = textarea.value.trim();
       });
+      ['cakes','jars'].forEach(key=>{
+        if(!productPages[key]) productPages[key] = {photos:[], description:''};
+        const prefix = key==='cakes' ? 'Cakes' : 'Jars';
+        const descEl = document.getElementById('setProduct'+prefix+'Desc');
+        if(descEl) productPages[key].description = descEl.value.trim();
+      });
       await saveOrderSettings();
       await saveLandingFaq();
+      await saveProductPages();
       const original = saveLandingPageBtn.textContent;
       saveLandingPageBtn.textContent = 'Išsaugota ✓';
       setTimeout(()=>{ saveLandingPageBtn.textContent = original; }, 1500);
@@ -6576,11 +6608,11 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
         if(!input.files || !input.files[0]) return;
         try{
           const dataUrl = await readFileCompressed(input.files[0]);
-          const key = prefix==='Cakes' ? 'productsCakes' : 'productsJars';
-          if(!orderSettings[key]) orderSettings[key] = {photos:[], description:'', priceMin:'', priceMax:''};
-          if(!orderSettings[key].photos) orderSettings[key].photos = [];
-          orderSettings[key].photos.push(dataUrl);
-          await saveOrderSettings();
+          const key = prefix==='Cakes' ? 'cakes' : 'jars';
+          if(!productPages[key]) productPages[key] = {photos:[], description:''};
+          if(!productPages[key].photos) productPages[key].photos = [];
+          productPages[key].photos.push(dataUrl);
+          await saveProductPages();
           render();
         }catch(e){ console.error('Nepavyko įkelti produkto nuotraukos', e); }
       };
@@ -6589,9 +6621,8 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
       btn.onclick = async ()=>{
         const [type, idxStr] = btn.dataset.removeProductPhoto.split(':');
         const idx = parseInt(idxStr, 10);
-        const key = type==='cakes' ? 'productsCakes' : 'productsJars';
-        if(orderSettings[key] && orderSettings[key].photos) orderSettings[key].photos.splice(idx, 1);
-        await saveOrderSettings();
+        if(productPages[type] && productPages[type].photos) productPages[type].photos.splice(idx, 1);
+        await saveProductPages();
         render();
       };
     });
@@ -6616,39 +6647,15 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
           const [type, idxStr] = el.dataset.productPhotoDrag.split(':');
           const targetIndex = +idxStr;
           if(!dragSrc || dragSrc.type !== type || dragSrc.index === targetIndex){ dragSrc = null; return; }
-          const key = type==='cakes' ? 'productsCakes' : 'productsJars';
-          const photos = orderSettings[key].photos;
+          const photos = productPages[type].photos;
           const [moved] = photos.splice(dragSrc.index, 1);
           photos.splice(targetIndex, 0, moved);
           dragSrc = null;
-          await saveOrderSettings();
+          await saveProductPages();
           render();
         };
       });
     })();
-    const saveProductsSectionBtn = document.getElementById('saveProductsSectionBtn');
-    if(saveProductsSectionBtn) saveProductsSectionBtn.onclick = async ()=>{
-      const setIfExists = (id, key)=>{
-        const el = document.getElementById(id);
-        if(el) orderSettings[key] = (el.value||'').trim();
-      };
-      setIfExists('setLandingProductsTitle', 'landingProductsTitle');
-      setIfExists('setLandingProductsSubtitle', 'landingProductsSubtitle');
-      ['Cakes','Jars'].forEach(prefix=>{
-        const key = prefix==='Cakes' ? 'productsCakes' : 'productsJars';
-        if(!orderSettings[key]) orderSettings[key] = {photos:[], description:'', priceMin:'', priceMax:''};
-        const descEl = document.getElementById('setProduct'+prefix+'Desc');
-        if(descEl) orderSettings[key].description = descEl.value.trim();
-        const minEl = document.getElementById('setProduct'+prefix+'PriceMin');
-        if(minEl) orderSettings[key].priceMin = minEl.value.trim();
-        const maxEl = document.getElementById('setProduct'+prefix+'PriceMax');
-        if(maxEl) orderSettings[key].priceMax = maxEl.value.trim();
-      });
-      await saveOrderSettings();
-      const original = saveProductsSectionBtn.textContent;
-      saveProductsSectionBtn.textContent = 'Išsaugota ✓';
-      setTimeout(()=>{ saveProductsSectionBtn.textContent = original; }, 1500);
-    };
     const addFaqBtn = document.getElementById('addFaqBtn');
     if(addFaqBtn) addFaqBtn.onclick = async ()=>{
       landingFaqList.push({id: uid(), q: '', a: ''});
@@ -7890,6 +7897,13 @@ textarea.paste:focus{outline:none;border-color:var(--berry);border-style:solid;}
         modalOrder = emptyOrderTemplate(nextOrderNumber());
         screenMode = 'customer';
         initFacebookPixel(orderSettings.fbPixelId);
+        render();
+      }
+    } else if(currentProductRoute()){
+      if(screenMode !== 'product' || productRouteType !== currentProductRoute()){
+        productRouteType = currentProductRoute();
+        productPhotoIndex = 0;
+        screenMode = 'product';
         render();
       }
     } else if(screenMode !== 'landing'){
